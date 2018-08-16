@@ -1,9 +1,28 @@
 /**
  * Common database helper functions.
  */
-var dbPromise = idb.open('restdb', 1, function(upgradeDb){
-	var store = upgradeDb.createObjectStore('restaurants', {keyPath: 'id'});
+ /*
+ var dbPromise = idb.open('restdb', 1, function(upgradeDb){
+ 	var store = upgradeDb.createObjectStore('restaurants', {keyPath: 'id'});
+ });*/
+
+ var dbPromise = idb.open('restdb', 1, function(upgradeDb) {
+  switch (upgradeDb.oldVersion) {
+    case 0:
+      // a placeholder case so that the switch block will
+      // execute when the database is first created
+      // (oldVersion is 0)
+    case 1:
+      console.log('Creating the restaurants object store');
+      upgradeDb.createObjectStore('restaurants', {keyPath: 'id'});
+    case 2:
+      console.log('Creating a name index');
+      var store = upgradeDb.transaction.objectStore('restaurants');
+      store.createIndex('restaurant', 'restaurant', {unique: true});
+
+  }
 });
+
 
 class DBHelper {
 	/**
@@ -25,17 +44,17 @@ class DBHelper {
 			})
 			.then(restaurants => {
 				dbPromise.then(db => {
-					const tx = db.transaction('restaurants', 'readwrite');
-					const store = tx.objectStore('restaurants');
+					var tx = db.transaction('restaurants', 'readwrite');
+					var store = tx.objectStore('restaurants');
 					restaurants.forEach(restaurant => {
 						store.put(restaurant);
 					})
 					callback(null, restaurants);
 				});
 			}).catch(err => {
-				idb.open('restdb', 1).then(function(db) {
-					const objStore = db.transaction('restaurants', 'readwrite').objectStore('restaurants');
-					return objStore.getAll();
+				dbPromise.then(function(db) {
+					var store = db.transaction('restaurants', 'readwrite').objectStore('restaurants');
+					return store.getAll();
 				}).then(function(data) {
 					callback(null, data);
 				});
@@ -166,8 +185,8 @@ class DBHelper {
 	static imageUrlForRestaurant(restaurant) {
 		return (`/img/${restaurant.photograph}.jpg`);
 	}
-	static altTag(restaurant){
-		return (`${restaurant.alt}`);
+static altTag(restaurant){
+		return (`${restaurant.name}`);
 	}
 	/**
    * Map marker for a restaurant.
